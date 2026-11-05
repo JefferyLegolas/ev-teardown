@@ -56,6 +56,314 @@
     return p;
   }
 
+  /* ============================================================
+     电池化学体系：五种方案，几何 / 参数 / 文案都随之切换
+     ============================================================ */
+  EV.BATTERY_TYPES = {
+    ncm: {
+      id: 'ncm', name: '三元锂', en: 'NCM 811', accent: 0x38e8ff,
+      chip: '800V SiC 高压平台',
+      cellTop: 0.433, lidY: 0.462,
+      specs: [
+        ['总能量', '100 kWh'],
+        ['化学体系', 'NCM 811 高镍三元'],
+        ['额定电压', '800 V（650–920 V）'],
+        ['能量密度', '205 Wh/kg · 412 Wh/L'],
+        ['快充能力', '10–80% / 12 min（480 kW）'],
+        ['循环寿命', '2,000 次 ≥ 80%'],
+        ['低温保持', '−20 ℃ 约 78%']
+      ],
+      desc: '高镍正极 + 硅碳负极把能量密度推到 205 Wh/kg，代价是热稳定性更敏感：模组间夹云母隔热片、每颗电芯配独立排气通道，单颗热失控可在 30 分钟内不扩散至相邻模组。',
+      vehicle: { power: '410', accel: '3.9', range: '700', energy: '100', mass: '2180' }
+    },
+    lfp: {
+      id: 'lfp', name: '磷酸铁锂', en: 'LFP', accent: 0x54f0a8,
+      chip: '800V 磷酸铁锂平台',
+      cellTop: 0.471, lidY: 0.500,
+      specs: [
+        ['总能量', '92 kWh'],
+        ['化学体系', 'LFP 磷酸铁锂'],
+        ['额定电压', '800 V（620–900 V）'],
+        ['能量密度', '165 Wh/kg · 355 Wh/L'],
+        ['快充能力', '10–80% / 18 min（350 kW）'],
+        ['循环寿命', '4,000 次 ≥ 80%'],
+        ['低温保持', '−20 ℃ 约 62%']
+      ],
+      desc: '橄榄石结构的磷酸铁锂几乎不释放氧气，针刺、挤压均不起火，循环寿命是三元的两倍。代价是体积利用率低——同样 800 V 架构下要多装 12 个模组、增重 80 kg，因此热管理更依赖主动液冷与低温脉冲自加热。',
+      vehicle: { power: '405', accel: '4.1', range: '640', energy: '92', mass: '2260' }
+    },
+    blade: {
+      id: 'blade', name: '刀片电池', en: 'BLADE', accent: 0xffb84d,
+      chip: '800V 刀片 CTB 平台',
+      cellTop: 0.420, lidY: 0.448,
+      specs: [
+        ['总能量', '96 kWh'],
+        ['化学体系', 'LFP 长薄电芯（刀片）'],
+        ['电芯尺寸', '约 960 × 90 × 13.5 mm'],
+        ['体积利用率', '66%（结构件一体化）'],
+        ['快充能力', '10–80% / 15 min（400 kW）'],
+        ['循环寿命', '3,500 次 ≥ 80%'],
+        ['针刺结果', '无明火、无爆炸']
+      ],
+      desc: '把电芯做成 0.96 m 的长薄"刀片"，直接纵向排布成梁——电芯本身成为结构件，省掉模组与横梁，体积利用率从 40% 提升到 66%。更长的散热路径让热扩散风险进一步降低，代价是整包高度被压到 110 mm 左右。',
+      vehicle: { power: '405', accel: '4.2', range: '660', energy: '96', mass: '2230' }
+    },
+    solid: {
+      id: 'solid', name: '固态电池', en: 'SOLID-STATE', accent: 0xa98bff,
+      chip: '1000V 全固态平台',
+      cellTop: 0.387, lidY: 0.420,
+      specs: [
+        ['总能量', '120 kWh'],
+        ['化学体系', '硫化物全固态 + 锂金属负极'],
+        ['额定电压', '1000 V（800–1100 V）'],
+        ['能量密度', '400 Wh/kg · 780 Wh/L'],
+        ['快充能力', '10–80% / 9 min（600 kW）'],
+        ['循环寿命', '1,500 次 ≥ 80%'],
+        ['低温保持', '−30 ℃ 约 85%']
+      ],
+      desc: '硫化物固态电解质替代可燃电解液，能量密度翻倍到 400 Wh/kg，同样 120 kWh 的包体反而薄了 40 mm。电芯可叠层串联直接输出 1000 V，省掉升压环节；瓶颈在界面阻抗与锂枝晶，量产良率仍是主要成本来源。',
+      vehicle: { power: '430', accel: '3.5', range: '900', energy: '120', mass: '2140' }
+    },
+    sodium: {
+      id: 'sodium', name: '钠离子', en: 'Na-ion', accent: 0xff6b8a,
+      chip: '700V 钠离子平台',
+      cellTop: 0.480, lidY: 0.508,
+      specs: [
+        ['总能量', '65 kWh'],
+        ['化学体系', '层状氧化物 + 硬碳'],
+        ['额定电压', '700 V（500–800 V）'],
+        ['能量密度', '120 Wh/kg · 260 Wh/L'],
+        ['快充能力', '10–80% / 20 min（200 kW）'],
+        ['循环寿命', '5,000 次 ≥ 80%'],
+        ['低温保持', '−30 ℃ 约 88%']
+      ],
+      desc: '钠资源储量是锂的 400 倍，正极不用镍钴、负极用硬碳，整包成本下降约 30%。能量密度只有三元的一半，所以用圆柱电芯密排来抢空间；优势是 −30 ℃ 仍能放出 88% 容量，且可零电压运输，适合入门车型与储能复用。',
+      vehicle: { power: '300', accel: '5.2', range: '430', energy: '65', mass: '2080' }
+    }
+  };
+
+  EV.batteryType = 'ncm';
+
+  /* ---------------- 电池包几何（按方案重建） ---------------- */
+  function collectMats(g, id) {
+    var mats = [], seen = new Set();
+    g.traverse(function (o) {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.receiveShadow = true;
+      o.userData.partId = id;
+      var list = Array.isArray(o.material) ? o.material : [o.material];
+      list.forEach(function (m) {
+        if (!m || seen.has(m)) return;
+        seen.add(m);
+        if (!m.emissive) return; // 贴图类基础材质不参与高亮
+        m.userData.baseEmissive = m.emissive ? m.emissive.getHex() : 0x000000;
+        m.userData.baseEmissiveIntensity = m.emissiveIntensity === undefined ? 1 : m.emissiveIntensity;
+        mats.push(m);
+      });
+    });
+    return mats;
+  }
+
+  function localBox(g) {
+    g.updateMatrixWorld(true);
+    var inv = new T.Matrix4().copy(g.matrixWorld).invert();
+    var box = new T.Box3();
+    var tmp = new T.Matrix4();
+    g.traverse(function (o) {
+      if (!o.isMesh || !o.geometry) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      var b = o.geometry.boundingBox.clone();
+      tmp.multiplyMatrices(inv, o.matrixWorld);
+      b.applyMatrix4(tmp);
+      box.union(b);
+    });
+    return box;
+  }
+
+  function disposeNode(node) {
+    node.traverse(function (o) {
+      if (o.geometry) o.geometry.dispose();
+      var mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      mats.forEach(function (m) {
+        if (!m) return;
+        if (m.map) m.map.dispose();
+        m.dispose();
+      });
+    });
+  }
+
+  function namePlateTexture(text, hex) {
+    var w = 512, h = 128;
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var g = c.getContext('2d');
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = 'rgba(6,14,20,0.85)';
+    g.fillRect(0, 0, w, h);
+    g.strokeStyle = hex;
+    g.lineWidth = 4;
+    g.strokeRect(3, 3, w - 6, h - 6);
+    g.fillStyle = hex;
+    g.font = '600 54px "Segoe UI", "Microsoft YaHei", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, w / 2, h / 2 + 2);
+    var t = new T.CanvasTexture(c);
+    t.colorSpace = T.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }
+
+  function buildBatteryCells(spec, mods) {
+    var id = spec.id;
+
+    if (id === 'ncm') {
+      var cellMat = M.dark(0x2a3a46), cap = M.metal(0xb8c6d2);
+      for (var ix = 0; ix < 4; ix++) {
+        for (var iz = 0; iz < 2; iz++) {
+          var mx = -0.88 + ix * 0.585, mz = (iz ? 1 : -1) * 0.375;
+          mods.add(G.box(0.545, 0.135, 0.345, cellMat, mx, 0.365, mz));
+          mods.add(G.box(0.50, 0.012, 0.06, cap, mx, 0.437, mz + 0.09));
+          mods.add(G.box(0.50, 0.012, 0.06, cap, mx, 0.437, mz - 0.09));
+          mods.add(G.box(0.015, 0.008, 0.30, M.hv(), mx + 0.26, 0.442, mz));
+        }
+      }
+      return;
+    }
+
+    if (id === 'lfp') {
+      var lfpCell = M.dark(0x33424e), lfpCap = M.metal(0xc3d0da);
+      for (var c2 = 0; c2 < 6; c2++) {
+        for (var r2 = 0; r2 < 2; r2++) {
+          var lx = -1.0 + c2 * 0.40, lz = (r2 ? 1 : -1) * 0.375;
+          mods.add(G.box(0.345, 0.165, 0.345, lfpCell, lx, 0.378, lz));
+          // 顶盖板与防爆阀
+          mods.add(G.box(0.30, 0.010, 0.30, lfpCap, lx, 0.466, lz));
+          mods.add(G.cyl(0.022, 0.022, 0.012, 14, M.metal(0x8fa0ad), lx, 0.473, lz));
+          // 极柱
+          mods.add(G.cyl(0.015, 0.015, 0.016, 12, M.copper(), lx - 0.10, 0.473, lz));
+          mods.add(G.cyl(0.015, 0.015, 0.016, 12, M.copper(), lx + 0.10, 0.473, lz));
+        }
+      }
+      // 模组间云母隔热片
+      for (var m2 = 0; m2 < 5; m2++) {
+        mods.add(G.box(0.012, 0.19, 1.42, M.plastic(0x8a6a5c), -0.80 + m2 * 0.40, 0.38, 0));
+      }
+      return;
+    }
+
+    if (id === 'blade') {
+      var bladeMat = M.dark(0x1f2a33);
+      for (var b = 0; b < 12; b++) {
+        var bx = -1.02 + b * 0.186;
+        mods.add(G.box(0.150, 0.130, 1.42, bladeMat, bx, 0.352, 0));
+        // 端部极柱
+        mods.add(G.cyl(0.016, 0.016, 0.018, 12, M.copper(), bx, 0.424, 0.66));
+        mods.add(G.cyl(0.016, 0.016, 0.018, 12, M.copper(), bx, 0.424, -0.66));
+        // 相邻刀片间的汇流排
+        if (b < 11) {
+          mods.add(G.box(0.032, 0.008, 0.05, M.metal(0xc7b49a), bx + 0.093, 0.424, 0.66));
+          mods.add(G.box(0.032, 0.008, 0.05, M.metal(0xc7b49a), bx + 0.093, 0.424, -0.66));
+        }
+      }
+      // 端部压紧梁
+      mods.add(G.box(0.06, 0.15, 1.50, M.alu(0x93a2b0), -1.14, 0.35, 0));
+      mods.add(G.box(0.06, 0.15, 1.50, M.alu(0x93a2b0), 1.14, 0.35, 0));
+      return;
+    }
+
+    if (id === 'solid') {
+      var ssCell = M.dark(0x1b2f3d), sep = M.accentMetal();
+      for (var s2 = 0; s2 < 3; s2++) {
+        for (var t2 = 0; t2 < 2; t2++) {
+          var sx = -0.80 + s2 * 0.80, sz = (t2 ? 1 : -1) * 0.36;
+          mods.add(G.box(0.70, 0.095, 0.62, ssCell, sx, 0.335, sz));
+          // 固态电解质隔板
+          mods.add(G.box(0.66, 0.008, 0.58, sep, sx, 0.387, sz));
+          // 锂金属负极引出片
+          mods.add(G.box(0.10, 0.004, 0.16, M.metal(0xd6e2ec), sx - 0.28, 0.394, sz));
+        }
+      }
+      return;
+    }
+
+    // sodium：圆柱电芯密排
+    var naCell = M.dark(0x303d47), naCap = M.metal(0xc8d3db);
+    for (var nx = 0; nx < 7; nx++) {
+      for (var nz = 0; nz < 5; nz++) {
+        var px = -0.78 + nx * 0.26, pz = -0.56 + nz * 0.28;
+        mods.add(G.cyl(0.058, 0.058, 0.20, 18, naCell, px, 0.375, pz));
+        mods.add(G.cyl(0.030, 0.030, 0.014, 14, naCap, px, 0.482, pz));
+        mods.add(G.cyl(0.010, 0.010, 0.010, 10, M.copper(), px, 0.489, pz));
+      }
+    }
+    // 汇流排支架
+    for (var hb = 0; hb < 4; hb++) {
+      mods.add(G.box(1.90, 0.010, 0.035, M.metal(0xb9a58e), 0, 0.492, -0.56 + hb * 0.28 + 0.14));
+    }
+  }
+
+  function buildBatteryContent(g, spec) {
+    // 托盘
+    var shell = new T.Group();
+    var alu = M.alu(0x8b9aa7);
+    var wallTop = spec.lidY - 0.018;
+    var wallH = wallTop - 0.28;
+    shell.add(G.box(2.42, 0.05, 1.58, alu, 0, 0.285, 0));
+    shell.add(G.box(2.42, wallH, 0.035, alu, 0, 0.28 + wallH / 2, 0.775));
+    shell.add(G.box(2.42, wallH, 0.035, alu, 0, 0.28 + wallH / 2, -0.775));
+    shell.add(G.box(0.035, wallH, 1.55, alu, 1.20, 0.28 + wallH / 2, 0));
+    shell.add(G.box(0.035, wallH, 1.55, alu, -1.20, 0.28 + wallH / 2, 0));
+    // 液冷板
+    shell.add(G.box(2.30, 0.03, 1.44, M.metal(0x6f8394), 0, 0.315, 0));
+    // 底部加强筋
+    for (var i = 0; i < 5; i++) {
+      shell.add(G.box(0.03, 0.02, 1.50, M.metal(0x5c7183), -1.0 + i * 0.5, 0.305, 0));
+    }
+    // 高压接插件
+    shell.add(G.cyl(0.065, 0.065, 0.12, 20, M.hv(), -1.16, 0.365, 0.55, 0, 0, Math.PI / 2));
+    shell.add(G.cyl(0.048, 0.048, 0.10, 18, M.hv(), -1.16, 0.365, -0.55, 0, 0, Math.PI / 2));
+    // 冷却液接口
+    shell.add(G.cyl(0.035, 0.035, 0.10, 16, M.plastic(0x2b6c8a), 1.22, 0.34, 0.42, 0, 0, Math.PI / 2));
+    shell.add(G.cyl(0.035, 0.035, 0.10, 16, M.plastic(0x2b6c8a), 1.22, 0.34, 0.12, 0, 0, Math.PI / 2));
+    shell.userData.explodeDir = new T.Vector3(0, -0.94, 0);
+    shell.userData.explodeDist = 1;
+    shell.userData.basePos = shell.position.clone();
+    g.add(shell);
+
+    // 电芯 / 模组
+    var mods = new T.Group();
+    buildBatteryCells(spec, mods);
+    mods.userData.explodeDir = new T.Vector3(0, -0.46, 0);
+    mods.userData.explodeDist = 1;
+    mods.userData.basePos = mods.position.clone();
+    g.add(mods);
+
+    // 上盖
+    var lid = new T.Group();
+    var y = spec.lidY;
+    lid.add(G.box(2.40, 0.035, 1.56, M.plastic(0x1d2832), 0, y, 0));
+    lid.add(G.box(0.34, 0.006, 0.14, M.emit(spec.accent, 1.2), 0.70, y + 0.021, 0.55));
+    lid.add(G.box(0.34, 0.006, 0.14, M.emit(spec.accent, 1.2), -0.70, y + 0.021, -0.55));
+    lid.add(G.cyl(0.045, 0.045, 0.02, 16, M.metal(0x9fb0bd), 0, y + 0.021, 0.62));
+    // 方案铭牌
+    var plate = new T.Mesh(
+      new T.PlaneGeometry(0.92, 0.23),
+      new T.MeshBasicMaterial({
+        map: namePlateTexture(spec.en, '#' + spec.accent.toString(16).padStart(6, '0')),
+        transparent: true, opacity: 0.95, depthWrite: false
+      })
+    );
+    plate.rotation.x = -Math.PI / 2;
+    plate.position.set(0, y + 0.019, 0.30);
+    lid.add(plate);
+    lid.userData.explodeDir = new T.Vector3(0, 0.30, 0);
+    lid.userData.explodeDist = 1;
+    lid.userData.basePos = lid.position.clone();
+    g.add(lid);
+  }
+
   EV.buildCar = function () {
     var root = new T.Group();
     root.name = 'EV';
@@ -72,22 +380,7 @@
       root.add(g);
       cfg.build(g);
 
-      var mats = [];
-      var seen = new Set();
-      g.traverse(function (o) {
-        if (!o.isMesh) return;
-        o.castShadow = true;
-        o.receiveShadow = true;
-        o.userData.partId = cfg.id;
-        var list = Array.isArray(o.material) ? o.material : [o.material];
-        list.forEach(function (m) {
-          if (!m || seen.has(m)) return;
-          seen.add(m);
-          m.userData.baseEmissive = m.emissive ? m.emissive.getHex() : 0x000000;
-          m.userData.baseEmissiveIntensity = m.emissiveIntensity === undefined ? 1 : m.emissiveIntensity;
-          mats.push(m);
-        });
-      });
+      var mats = collectMats(g, cfg.id);
 
       var box = new T.Box3().setFromObject(g);
       var center = box.getCenter(new T.Vector3());
@@ -284,77 +577,10 @@
         });
       },
       build: function (g) {
-        var tray = new T.Group();
-        g.add(tray);
-
-        // 下托盘
-        var shell = new T.Group();
-        shell.add(G.box(2.42, 0.05, 1.58, M.alu(0x8b9aa7), 0, 0.285, 0));
-        shell.add(G.box(2.42, 0.17, 0.035, M.alu(0x8b9aa7), 0, 0.365, 0.775));
-        shell.add(G.box(2.42, 0.17, 0.035, M.alu(0x8b9aa7), 0, 0.365, -0.775));
-        shell.add(G.box(0.035, 0.17, 1.55, M.alu(0x8b9aa7), 1.20, 0.365, 0));
-        shell.add(G.box(0.035, 0.17, 1.55, M.alu(0x8b9aa7), -1.20, 0.365, 0));
-        // 液冷板
-        shell.add(G.box(2.30, 0.03, 1.44, M.metal(0x6f8394), 0, 0.315, 0));
-        // 加强筋
-        for (var i = 0; i < 5; i++) {
-          shell.add(G.box(0.03, 0.02, 1.50, M.metal(0x5c7183), -1.0 + i * 0.5, 0.305, 0));
-        }
-        // 高压接插件
-        shell.add(G.cyl(0.065, 0.065, 0.12, 20, M.hv(), -1.16, 0.365, 0.55, 0, 0, Math.PI / 2));
-        shell.add(G.cyl(0.048, 0.048, 0.10, 18, M.hv(), -1.16, 0.365, -0.55, 0, 0, Math.PI / 2));
-        // 冷却液接口
-        shell.add(G.cyl(0.035, 0.035, 0.10, 16, M.plastic(0x2b6c8a), 1.22, 0.34, 0.42, 0, 0, Math.PI / 2));
-        shell.add(G.cyl(0.035, 0.035, 0.10, 16, M.plastic(0x2b6c8a), 1.22, 0.34, 0.12, 0, 0, Math.PI / 2));
-        shell.userData.explodeDir = new T.Vector3(0, -0.94, 0);
-        shell.userData.explodeDist = 1;
-        shell.userData.basePos = shell.position.clone();
-        tray.add(shell);
-
-        // 电芯模组
-        var mods = new T.Group();
-        var cellMat = M.dark(0x2a3a46);
-        var capMat = M.metal(0xb8c6d2);
-        for (var ix = 0; ix < 4; ix++) {
-          for (var iz = 0; iz < 2; iz++) {
-            var mx = -0.88 + ix * 0.585;
-            var mz = (iz ? 1 : -1) * 0.375;
-            var m = G.box(0.545, 0.135, 0.345, cellMat, mx, 0.365, mz);
-            mods.add(m);
-            // 极柱/汇流排
-            mods.add(G.box(0.50, 0.012, 0.06, capMat, mx, 0.437, mz + 0.09));
-            mods.add(G.box(0.50, 0.012, 0.06, capMat, mx, 0.437, mz - 0.09));
-            // 采样线束
-            mods.add(G.box(0.015, 0.008, 0.30, M.hv(), mx + 0.26, 0.442, mz));
-          }
-        }
-        mods.userData.explodeDir = new T.Vector3(0, -0.46, 0);
-        mods.userData.explodeDist = 1;
-        mods.userData.basePos = mods.position.clone();
-        tray.add(mods);
-
-        // 上盖
-        var lid = new T.Group();
-        lid.add(G.box(2.40, 0.035, 1.56, M.plastic(0x1d2832), 0, 0.462, 0));
-        lid.add(G.box(0.34, 0.006, 0.14, M.emit(0x38e8ff, 1.2), 0.70, 0.482, 0.55));
-        lid.add(G.box(0.34, 0.006, 0.14, M.emit(0x38e8ff, 1.2), -0.70, 0.482, -0.55));
-        // 防爆阀
-        lid.add(G.cyl(0.045, 0.045, 0.02, 16, M.metal(0x9fb0bd), 0.0, 0.482, 0.62));
-        lid.userData.explodeDir = new T.Vector3(0, 0.30, 0);
-        lid.userData.explodeDist = 1;
-        lid.userData.basePos = lid.position.clone();
-        tray.add(lid);
+        buildBatteryContent(g, EV.BATTERY_TYPES[EV.batteryType]);
       },
-      specs: [
-        ['总能量', '100 kWh'],
-        ['化学体系', 'NCM 811 高镍三元'],
-        ['额定电压', '800 V (650–920 V)'],
-        ['能量密度', '205 Wh/kg · 412 Wh/L'],
-        ['快充能力', '10–80% / 12 min (480 kW)'],
-        ['循环寿命', '3,000 次 ≥ 80%'],
-        ['防护等级', 'IP68 + IP6K9K']
-      ],
-      desc: 'CTB（Cell to Body）结构让电芯直接粘接在车身地板下，电池上盖即乘员舱地板，垂向空间节省 10 mm。模组间布置 6 条液冷回路与云母隔热片，单颗电芯热失控可在 30 分钟内不扩散至相邻模组。'
+      specs: EV.BATTERY_TYPES[EV.batteryType].specs,
+      desc: EV.BATTERY_TYPES[EV.batteryType].desc
     });
 
     /* ========================================================
@@ -1023,5 +1249,27 @@
     EV.parts = parts;
     EV.partsById = byId;
     return parts;
+  };
+
+  /* 运行时切换电池化学体系：重建几何 + 刷新参数 */
+  EV.setBatteryType = function (id) {
+    var spec = EV.BATTERY_TYPES[id];
+    var part = EV.partsById && EV.partsById.battery;
+    if (!spec || !part || EV.batteryType === id) return false;
+    var g = part.group;
+    g.children.slice().forEach(function (c) {
+      g.remove(c);
+      disposeNode(c);
+    });
+    buildBatteryContent(g, spec);
+    part.specs = spec.specs;
+    part.desc = spec.desc;
+    part.mats = collectMats(g, 'battery');
+    var box = localBox(g);
+    box.getCenter(part.anchor);
+    box.getSize(part.size);
+    part.radius = Math.max(part.size.x, part.size.y, part.size.z) * 0.5;
+    EV.batteryType = id;
+    return true;
   };
 })();

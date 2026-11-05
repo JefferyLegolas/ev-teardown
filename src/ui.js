@@ -270,18 +270,20 @@
 
   function renderDetail(p) {
     if (!p) {
+      var bt = EV.BATTERY_TYPES[EV.batteryType];
+      var v = bt.vehicle;
       detailEl.innerHTML =
         '<div class="dp-head"><span class="dp-tag">整车概览</span><span class="dp-code">EV-1 / PLATFORM</span></div>' +
         '<h2 class="dp-title">纯电旗舰平台</h2>' +
-        '<div class="dp-en">800V · Dual Motor · CTB</div>' +
-        '<p class="dp-desc">点击左侧清单中的任意部件，或直接点击车身上的零件，即可触发该部件的拆解动画并查看工程参数。再次点击同一部件可让它复位归位。</p>' +
+        '<div class="dp-en">' + bt.chip + '</div>' +
+        '<p class="dp-desc">点击清单或车身零件即可拆解单个部件。顶部「电池方案」可在 三元锂 / 磷酸铁锂 / 刀片 / 固态 / 钠离子 之间切换，电池包几何、工程参数与整车指标会同步重算。</p>' +
         '<div class="ov-grid">' +
-        '<div class="ov-cell"><div class="k">峰值功率</div><div class="v">410<small>kW</small></div></div>' +
-        '<div class="ov-cell"><div class="k">0–100 km/h</div><div class="v">3.9<small>s</small></div></div>' +
-        '<div class="ov-cell"><div class="k">CLTC 续航</div><div class="v">700<small>km</small></div></div>' +
-        '<div class="ov-cell"><div class="k">电池容量</div><div class="v">100<small>kWh</small></div></div>' +
-        '<div class="ov-cell"><div class="k">整备质量</div><div class="v">2180<small>kg</small></div></div>' +
-        '<div class="ov-cell"><div class="k">风阻系数</div><div class="v">0.208<small>Cd</small></div></div>' +
+        '<div class="ov-cell"><div class="k">峰值功率</div><div class="v">' + v.power + '<small>kW</small></div></div>' +
+        '<div class="ov-cell"><div class="k">0–100 km/h</div><div class="v">' + v.accel + '<small>s</small></div></div>' +
+        '<div class="ov-cell"><div class="k">CLTC 续航</div><div class="v">' + v.range + '<small>km</small></div></div>' +
+        '<div class="ov-cell"><div class="k">电池容量</div><div class="v">' + v.energy + '<small>kWh</small></div></div>' +
+        '<div class="ov-cell"><div class="k">整备质量</div><div class="v">' + v.mass + '<small>kg</small></div></div>' +
+        '<div class="ov-cell"><div class="k">电池方案</div><div class="v" style="font-size:14px">' + bt.name + '<small>' + bt.en + '</small></div></div>' +
         '</div>';
       document.getElementById('detailMeta').textContent = 'SPEC';
       return;
@@ -390,6 +392,61 @@
   mListBtn.addEventListener('click', function () { openDrawer('list'); });
   mInfoBtn.addEventListener('click', function () { openDrawer('info'); });
 
+  /* ---------------- 电池方案切换 ---------------- */
+  var chemOptsEl = document.getElementById('chemOpts');
+  var chemBtns = {};
+  Object.keys(EV.BATTERY_TYPES).forEach(function (id) {
+    var spec = EV.BATTERY_TYPES[id];
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = spec.name + '<b>' + spec.en + '</b>';
+    b.addEventListener('click', function () { setChem(id); });
+    chemOptsEl.appendChild(b);
+    chemBtns[id] = b;
+  });
+
+  var batteryPart = partsById.battery;
+  var batteryPop = 0;
+
+  function markChem() {
+    Object.keys(chemBtns).forEach(function (id) {
+      chemBtns[id].classList.toggle('on', id === EV.batteryType);
+    });
+    var chip = document.getElementById('chipPlatform');
+    if (chip) chip.textContent = EV.BATTERY_TYPES[EV.batteryType].chip;
+  }
+
+  var toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  document.body.appendChild(toastEl);
+  var toastTimer = 0;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 1900);
+  }
+
+  function setChem(id, silent) {
+    var spec = EV.BATTERY_TYPES[id];
+    if (!spec) return;
+    if (id === EV.batteryType) { markChem(); return; }
+    EV.setBatteryType(id);
+    applyExplode(batteryPart);
+    batteryPop = performance.now();
+    markChem();
+    if (state.selected === batteryPart) renderDetail(batteryPart);
+    else if (!state.selected) renderDetail(null);
+    if (!silent) toast('电池方案 · ' + spec.name + ' ' + spec.en);
+  }
+
+  markChem();
+  (function bootChem() {
+    var qs = new URLSearchParams(location.search || '');
+    var c = qs.get('chem');
+    if (c && EV.BATTERY_TYPES[c]) setChem(c, true);
+  })();
+
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') clearSelection();
     if (e.key === ' ' || e.code === 'Space') {
@@ -398,6 +455,8 @@
       if (allOut) resetAll(); else explodeAll();
     }
     if (e.key === 'r' || e.key === 'R') resetAll();
+    var chemKeys = { '1': 'ncm', '2': 'lfp', '3': 'blade', '4': 'solid', '5': 'sodium' };
+    if (chemKeys[e.key]) setChem(chemKeys[e.key]);
     if (e.key === 'l' || e.key === 'L') document.getElementById('btnLabels').click();
     if (e.key === 'a' || e.key === 'A') document.getElementById('btnRotate').click();
   });
@@ -491,6 +550,19 @@
       liftPosts[li].scale.y = Math.max(state.lift * 0.86, 0.001);
     }
 
+    if (batteryPop) {
+      var u = (performance.now() - batteryPop) / 460;
+      var kids = batteryPart.group.children;
+      if (u >= 1) {
+        batteryPop = 0;
+        kids.forEach(function (k) { k.scale.set(1, 1, 1); });
+      } else {
+        var eb = 1 + 2.70158 * Math.pow(u - 1, 3) + 1.70158 * Math.pow(u - 1, 2);
+        var sc = 0.88 + 0.12 * eb;
+        kids.forEach(function (k) { k.scale.set(sc, sc, sc); });
+      }
+    }
+
     var hk = 1 - Math.exp(-10 * dt);
     for (var j = 0; j < parts.length; j++) {
       var q = parts[j];
@@ -499,6 +571,7 @@
       if (Math.abs(q.glow - (q._lastGlow || 0)) > 0.004) {
         for (var m = 0; m < q.mats.length; m++) {
           var mat = q.mats[m];
+          if (!mat.emissive) continue;
           if (q.glow < 0.004) {
             mat.emissive.setHex(mat.userData.baseEmissive);
             mat.emissiveIntensity = mat.userData.baseEmissiveIntensity;
@@ -566,6 +639,10 @@
   setTimeout(function () {
     if (boot) boot.classList.add('hide');
   }, 240);
+  // 过渡结束后彻底移除，避免任何合成残留
+  setTimeout(function () {
+    if (boot && boot.parentNode) boot.parentNode.removeChild(boot);
+  }, 1200);
 
   // 调试接口
   EV.state = state;

@@ -9,3 +9,4 @@ Thumbs.db
 .chrome*/
 node_modules/
 __pycache__/
+.cdp*/
